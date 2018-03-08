@@ -156,8 +156,8 @@ sudo apt-get install nodejs npm
 sudo npm install -g less
 sudo npm install -g less-plugin-clean-css
 
-sudo git clone --branch master https://www.github.com/nahualventures/odoo-addons $OE_HOME_EXT/
-sudo git clone --branch master https://www.github.com/nahualventures/odoo-addons-external $OE_HOME_EXT/
+sudo git clone --branch master https://www.github.com/nahualventure/odoo-addons $OE_HOME_EXT/
+sudo git clone --branch master https://www.github.com/nahualventure/odoo-addons-external $OE_HOME_EXT/
 
 # echo -e "\\n---- Create custom module directory ----"
 # sudo su $OE_USER -c "mkdir $OE_HOME/custom"
