@@ -17,8 +17,8 @@
 ##fixed parameters
 #odoo
 OE_USER="odoo"
-OE_HOME="/$OE_USER"
-OE_HOME_EXT="/$OE_USER"
+OE_HOME="/home/$OE_USER"
+OE_HOME_EXT="/$OE_HOME/odoo"
 OE_HOME_LOG="/$OE_USER/${OE_USER}-logs"
 #The default port where this Odoo instance will run under (provided you use the command -c in the terminal)
 #Set to true if you want to install it, false if you don't need it or have it already installed.
@@ -155,7 +155,9 @@ sudo apt-get install nodejs npm -y
 sudo npm install -g less
 sudo npm install -g less-plugin-clean-css
 
+echo -e "\\n---- Cloning odoo-addons repository"
 sudo git clone --branch master https://www.github.com/nahualventure/odoo-addons $OE_HOME_EXT/
+echo -e "\\n---- Cloning odoo-addons-external repository"
 sudo git clone --branch master https://www.github.com/nahualventure/odoo-addons-external $OE_HOME_EXT/
 
 # echo -e "\\n---- Create custom module directory ----"
