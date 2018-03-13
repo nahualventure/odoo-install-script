@@ -70,15 +70,14 @@ sudo apt-get install postgresql-9.5 -y
 
 echo -e "\\n---- Creating the ODOO PostgreSQL User  ----"
 sudo su - postgres -c "createuser -s $OE_USER" 2> /dev/null || true
-
-sed -i -e
+echo -e "\\n---- Adding new line to pg_hba.conf ----"
 sudo echo "local	all		odoo					trust" >> /etc/postgresql/9.5/main/pg_hba.conf
 
 #--------------------------------------------------
 # Install Dependencies
 #--------------------------------------------------
 echo -e "\\n--- Installing Python 3 + pip3 --"
-sudo apt-get install python3 python3-pip
+sudo apt-get install python3 python3-pip -y
 
 echo -e "\\n---- Install tool packages ----"
 sudo apt-get install wget git bzr python-pip gdebi-core -y
@@ -89,7 +88,7 @@ sudo pip3 install pypdf2 Babel passlib Werkzeug decorator python-dateutil pyyaml
 
 echo -e "\\n---- Install python libraries ----"
 # This is for compatibility with Ubuntu 16.04. Will work on 14.04, 15.04 and 16.04
-sudo apt-get install python3-suds
+sudo apt-get install python3-suds -y
 
 echo -e "\\n--- Install other required packages"
 sudo apt-get install node-clean-css -y
@@ -152,7 +151,7 @@ if [ $IS_ENTERPRISE = "True" ]; then
 fi
 
 echo -e "\\n---- Installing Enterprise specific libraries ----"
-sudo apt-get install nodejs npm
+sudo apt-get install nodejs npm -y
 sudo npm install -g less
 sudo npm install -g less-plugin-clean-css
 
@@ -244,7 +243,7 @@ sudo chown $OE_USER:$OE_USER /etc/${OE_CONFIG}.conf
 sudo chmod 640 /etc/${OE_CONFIG}.conf
 
 #NGINX configuration
-sudo apt-get install nginx
+sudo apt-get install nginx -y
 sudo ufw allow 'Nginx HTTP'
 sudo cat << EOF > /etc/nginx/sites-available
 upstream backend-odoo {
