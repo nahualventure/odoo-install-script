@@ -16,10 +16,10 @@
 
 ##fixed parameters
 #odoo
+INSTANCE_USER="ubuntu"
 OE_USER="odoo"
-OE_HOME="/home/$OE_USER"
-OE_HOME_EXT="$OE_HOME/$OE_USER"
-OE_HOME_LOG="/$OE_USER/${OE_USER}-logs"
+OE_HOME="/home/$INSTANCE_USER"
+OE_HOME_LOG="/$OE_HOME/${OE_USER}-logs"
 #The default port where this Odoo instance will run under (provided you use the command -c in the terminal)
 #Set to true if you want to install it, false if you don't need it or have it already installed.
 INSTALL_WKHTMLTOPDF="True"
@@ -63,6 +63,11 @@ sudo apt-get update
 sudo apt-get upgrade -y
 
 #--------------------------------------------------
+# Set Locale Settings
+#--------------------------------------------------
+export LC_ALL=C
+
+#--------------------------------------------------
 # Install PostgreSQL Server
 #--------------------------------------------------
 echo -e "\\n---- Install PostgreSQL Server ----"
@@ -71,7 +76,7 @@ sudo apt-get install postgresql-9.5 -y
 echo -e "\\n---- Creating the ODOO PostgreSQL User  ----"
 sudo su - postgres -c "createuser -s $OE_USER" 2> /dev/null || true
 echo -e "\\n---- Adding new line to pg_hba.conf ----"
-echo "local	all		odoo					trust" | sudo tee --append /etc/postgresql/9.5/main/pg_hba.conf
+echo "local	all		$OE_USER					trust" | sudo tee --append /etc/postgresql/9.5/main/pg_hba.conf
 
 #--------------------------------------------------
 # Install Dependencies
@@ -85,7 +90,9 @@ sudo apt-get install wget git bzr python-pip gdebi-core -y
 echo -e "\\n---- Install python packages ----"
 sudo apt-get install python-pypdf2 python-dateutil python-feedparser python-ldap python-libxslt1 python-lxml python-mako python-openid python-psycopg2 python-pybabel python-pychart python-pydot python-pyparsing python-reportlab python-simplejson python-tz python-vatnumber python-vobject python-webdav python-werkzeug python-xlwt python-yaml python-zsi python-docutils python-psutil python-mock python-unittest2 python-jinja2 python-pypdf python-decorator python-requests python-passlib python-pil -y
 sudo pip3 install --upgrade pip
-sudo pip3 install pypdf2 Babel passlib Werkzeug decorator python-dateutil pyyaml psycopg2 psutil html2text docutils lxml pillow reportlab ninja2 requests gdata XlsxWriter vobject python-openid pyparsing pydot mock mako Jinja2 ebaysdk feedparser xlwt psycogreen suds-jurko pytz pyusb greenlet xlrd 
+sudo pip3 install pypdf2 Babel passlib Werkzeug decorator python-dateutil pyyaml psycopg2 psutil html2text docutils lxml pillow reportlab ninja2 requests gdata XlsxWriter vobject python-openid pyparsing pydot mock mako Jinja2 ebaysdk feedparser xlwt psycogreen suds-jurko pytz pyusb greenlet xlrd
+# Packages for custom modules
+sudo pip3 install xlsxwriter zeep pysftp
 
 echo -e "\\n---- Install python libraries ----"
 # This is for compatibility with Ubuntu 16.04. Will work on 14.04, 15.04 and 16.04
@@ -115,14 +122,8 @@ else
   echo "Wkhtmltopdf isn't installed due to the choice of the user!"
 fi
 
-echo -e "\\n---- Create ODOO system user ----"
-sudo adduser --system --quiet --shell=/bin/bash --home=$OE_HOME --gecos 'ODOO' --group $OE_USER
-#The user should also be added to the sudo'ers group.
-sudo adduser $OE_USER sudo
-
 echo -e "\\n---- Create Log directory ----"
-sudo mkdir /var/log/$OE_USER
-sudo chown $OE_USER:$OE_USER /var/log/$OE_USER
+sudo mkdir $OE_HOME_LOG/
 
 #--------------------------------------------------
 # Install ODOO
@@ -157,9 +158,9 @@ sudo npm install -g less
 sudo npm install -g less-plugin-clean-css
 
 echo -e "\\n---- Cloning odoo-addons repository"
-sudo git clone --branch master https://www.github.com/nahualventure/odoo-addons $OE_HOME_EXT/
+sudo git clone --branch master https://www.github.com/nahualventure/odoo-addons
 echo -e "\\n---- Cloning odoo-addons-external repository"
-sudo git clone --branch master https://www.github.com/nahualventure/odoo-addons-external $OE_HOME_EXT/
+sudo git clone --branch master https://www.github.com/nahualventure/odoo-addons-external
 
 # echo -e "\\n---- Create custom module directory ----"
 # sudo su $OE_USER -c "mkdir $OE_HOME/custom"
@@ -169,7 +170,6 @@ echo -e "\\n---- Setting permissions on home folder ----"
 sudo chown -R $OE_USER:$OE_USER $OE_HOME/*
 
 echo -e "* Creating server config file"
-sudo touch /etc/${OE_CONFIG}.conf
 cat <<EOF > ~/$OE_CONFIG
 [options]
 addons_path = $OE_HOME/odoo/addons,$OE_HOME/odoo-addons,$OE_HOME/odoo-addons-external
@@ -248,6 +248,7 @@ echo -e "\\n ---- Installing NGINX ----"
 sudo apt-get install nginx -y
 sudo ufw allow 'Nginx HTTP'
 echo -e "* Creating nginx configuration file"
+sudo touch /etc/nginx/sites-available/$OE_USER
 sudo cat << EOF > /etc/nginx/sites-available/$OE_USER
 upstream backend-odoo {
   server 127.0.0.1:$OE_PORT;
@@ -303,19 +304,18 @@ server {
 
 }
 EOF
-
 echo -e "Setting up symlink"
 sudo ln -s /etc/nginx/sites-available/$OE_USER /etc/nginx/sites-enabled/$OE_USER
 echo -e "Initializing nginx..."
+sudo rm /etc/nginx/sites-enabled/default
 sudo systemctl start nginx
 
 echo "-----------------------------------------------------------"
 echo "Done! The Odoo server is up and running. Specifications:"
 echo "Port: $OE_PORT"
-echo "User service: $OE_USER"
 echo "User PostgreSQL: $OE_USER"
 echo "Code location: $OE_USER"
-echo "Odoo Addons folder: $OE_USER/$OE_CONFIG/addons/"
+echo "Odoo Addons folder: $OE_HOME/odoo-addons/"
 echo "Start Odoo service: sudo service $OE_CONFIG start"
 echo "Stop Odoo service: sudo service $OE_CONFIG stop"
 echo "Restart Odoo service: sudo service $OE_CONFIG restart"
