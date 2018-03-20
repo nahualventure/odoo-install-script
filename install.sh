@@ -38,6 +38,7 @@ OE_CRON_WORKERS="1"
 #set the superadmin password
 OE_SUPERADMIN="OodOskg7812!"
 OE_CONFIG=".odoorc"
+OE_RUN_SCRIPT="odoo-base-run"
 # Database params:
 DB_HOST="odoodev.cmys3wkb8w2g.us-east-1.rds.amazonaws.com"
 DB_PASS="odooposspast"
@@ -125,6 +126,16 @@ fi
 echo -e "\\n---- Create Log directory ----"
 sudo mkdir $OE_HOME_LOG/
 
+echo -e "\\n---- Create odoo-run script ----"
+cat <<EOF > ~/$OE_RUN_SCRIPT
+#!/bin/bash
+
+$OE_USER/odoo/odoo-bin
+EOF
+sudo chmod +x $OE_RUN_SCRIPT
+
+sudo mkdir $OE_HOME_LOG/
+
 #--------------------------------------------------
 # Install ODOO
 #--------------------------------------------------
@@ -153,7 +164,7 @@ if [ $IS_ENTERPRISE = "True" ]; then
 fi
 
 echo -e "\\n---- Installing Enterprise specific libraries ----"
-sudo apt-get install nodejs npm -y
+sudo apt-get install nodejs npm nodejs-legacy -y
 sudo npm install -g less
 sudo npm install -g less-plugin-clean-css
 
