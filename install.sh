@@ -1,9 +1,9 @@
 #!/bin/bash
 ################################################################################
 # Script for installing Odoo on Ubuntu 14.04, 15.04 and 16.04 (could be used for other version too)
-# Author: Yenthe Van Ginneken
+# Author: Oscar Gil
 #-------------------------------------------------------------------------------
-# This script will install Odoo on your Ubuntu 16.04 server. It can install multiple Odoo instances
+# This script will install Odoo on your Ubuntu 16.04. It can install multiple Odoo instances
 # in one Ubuntu because of the different xmlrpc_ports
 #-------------------------------------------------------------------------------
 # Make a new file:
@@ -14,12 +14,18 @@
 # ./odoo-install
 ################################################################################
 
+##instance parameters
+PRODUCTION="True"
+INSTALL_POSTGRESQL="True"
+CREATE_POSTGRESQL_USER="True"
+INSTANCE_USER="ubuntu"
+
 ##fixed parameters
 #odoo
-INSTANCE_USER="ubuntu"
 OE_USER="odoo"
 OE_HOME="/home/$INSTANCE_USER"
 OE_HOME_LOG="/$OE_HOME/${OE_USER}-logs"
+OE_INSTANCE="$OE_USER"
 #The default port where this Odoo instance will run under (provided you use the command -c in the terminal)
 #Set to true if you want to install it, false if you don't need it or have it already installed.
 INSTALL_WKHTMLTOPDF="True"
@@ -29,7 +35,7 @@ OE_LONGP_PORT="8072"
 OE_SMTP_PORT="25"
 #Choose the Odoo version which you want to install. For example: 11.0, 10.0, 9.0 or saas-18. When using 'master' the master version will be installed.
 #IMPORTANT! This script contains extra libraries that are specifically needed for Odoo 11.0
-OE_VERSION="10.0"
+OE_VERSION="11.0"
 # Set this to True if you want to install Odoo 11 Enterprise!
 IS_ENTERPRISE="False"
 #Workers config
@@ -40,11 +46,12 @@ OE_SUPERADMIN="OodOskg7812!"
 OE_CONFIG=".odoorc"
 OE_RUN_SCRIPT="odoo-base-run"
 # Database params:
-DB_HOST="odoodev.cmys3wkb8w2g.us-east-1.rds.amazonaws.com"
-DB_PASS="odooposspast"
+DB_HOST="http://localhost:5432"
+DB_PASS="odoo123"
 DB_TEMPLATE="template1"
 DB_USER="odoo"
 # Sentry params:
+SENTRY="True"
 ST_DSN="https://b1431655be754af8adf9d24458e50b90:cf04912ff7fe45f985b1aafd4d59ed29@sentry.io/211274"
 
 
@@ -56,28 +63,74 @@ ST_DSN="https://b1431655be754af8adf9d24458e50b90:cf04912ff7fe45f985b1aafd4d59ed2
 WKHTMLTOX_X64=https://downloads.wkhtmltopdf.org/0.12/0.12.1/wkhtmltox-0.12.1_linux-trusty-amd64.deb
 WKHTMLTOX_X32=https://downloads.wkhtmltopdf.org/0.12/0.12.1/wkhtmltox-0.12.1_linux-trusty-i386.deb
 
-#--------------------------------------------------
-# Update Server
-#--------------------------------------------------
-echo -e "\\n---- Update Server ----"
-sudo apt-get update
-sudo apt-get upgrade -y
+if [ $PRODUCTION = "True" ]; then
+    #--------------------------------------------------
+    # Update Server
+    #--------------------------------------------------
+    echo -e "\\n---- Update Server ----"
+    sudo apt-get update
+    sudo apt-get upgrade -y
 
-#--------------------------------------------------
-# Set Locale Settings
-#--------------------------------------------------
-export LC_ALL=C
+    #--------------------------------------------------
+    # Set Locale Settings
+    #--------------------------------------------------
+    export LC_ALL=C
+fi
 
 #--------------------------------------------------
 # Install PostgreSQL Server
 #--------------------------------------------------
-echo -e "\\n---- Install PostgreSQL Server ----"
-sudo apt-get install postgresql-9.5 -y
+if [ $INSTALL_POSTGRESQL = "True" ]; then
+    echo -e "\\n---- Install PostgreSQL Server ----"
+    sudo apt-get install postgresql -y
+fi
 
-echo -e "\\n---- Creating the ODOO PostgreSQL User  ----"
-sudo su - postgres -c "createuser -s $OE_USER" 2> /dev/null || true
-echo -e "\\n---- Adding new line to pg_hba.conf ----"
-echo "local	all		$OE_USER					trust" | sudo tee --append /etc/postgresql/9.5/main/pg_hba.conf
+if [ $CREATE_POSTGRESQL_USER = "True" ]; then
+    echo -e "\\n---- Creating the ODOO PostgreSQL User  ----"
+    sudo su - postgres -c "createuser -s $DB_USER" 2> /dev/null || true
+    echo -e "\\n---- Adding new line to pg_hba.conf ----"
+    echo "local	all		$DB_USER					trust" | sudo tee --append /etc/postgresql/9.6/main/pg_hba.conf
+fi
+
+#--------------------------------------------------
+# Install Wkhtmltopdf if needed
+#--------------------------------------------------
+if [ $INSTALL_WKHTMLTOPDF = "True" ]; then
+    echo -e "\\n---- Install wkhtml and place shortcuts on correct place for ODOO 11 ----"
+    #pick up correct one from x64 & x32 versions:
+    if [ "`getconf LONG_BIT`" == "64" ];then
+        _url=$WKHTMLTOX_X64
+    else
+        _url=$WKHTMLTOX_X32
+    fi
+    sudo wget $_url
+    sudo gdebi --n `basename $_url`
+    sudo ln -s /usr/local/bin/wkhtmltopdf /usr/bin
+sudo ln -s /usr/local/bin/wkhtmltoimage /usr/bin
+else
+    echo "Wkhtmltopdf isn't installed due to the choice of the user!"
+fi
+
+if [ $PRODUCTION = "True" ]; then
+    echo -e "\\n---- Create Log directory ----"
+    sudo mkdir $OE_HOME_LOG/
+
+    echo -e "\\n---- Create odoo-run script ----"
+    cat <<EOF > ~/$OE_RUN_SCRIPT
+#!/bin/bash
+
+$OE_HOME/odoo/odoo-bin
+EOF
+    sudo chmod +x $OE_RUN_SCRIPT
+
+    sudo mkdir $OE_HOME_LOG/
+fi
+
+#--------------------------------------------------
+# Install ODOO
+#--------------------------------------------------
+echo -e "\\n==== Installing ODOO Server ===="
+sudo git clone --depth 1 --branch $OE_VERSION https://www.github.com/odoo/odoo $OE_HOME/
 
 #--------------------------------------------------
 # Install Dependencies
@@ -90,6 +143,13 @@ sudo apt-get install wget git bzr python-pip gdebi-core -y
 
 echo -e "\\n---- Install python packages ----"
 sudo apt-get install python-pypdf2 python-dateutil python-feedparser python-ldap python-libxslt1 python-lxml python-mako python-openid python-psycopg2 python-pybabel python-pychart python-pydot python-pyparsing python-reportlab python-simplejson python-tz python-vatnumber python-vobject python-webdav python-werkzeug python-xlwt python-yaml python-zsi python-docutils python-psutil python-mock python-unittest2 python-jinja2 python-pypdf python-decorator python-requests python-passlib python-pil -y
+
+sudo pip3 install virtualenvwrapper
+export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3
+source /usr/local/bin/virtualenvwrapper.sh
+sudo mkvirtualenv $OE_INSTANCE
+
+
 sudo pip3 install --upgrade pip
 sudo pip3 install pypdf2 Babel passlib Werkzeug decorator python-dateutil pyyaml psycopg2 psutil html2text docutils lxml pillow reportlab ninja2 requests gdata XlsxWriter vobject python-openid pyparsing pydot mock mako Jinja2 ebaysdk feedparser xlwt psycogreen suds-jurko pytz pyusb greenlet xlrd
 # Packages for custom modules
@@ -104,52 +164,13 @@ sudo apt-get install node-clean-css -y
 sudo apt-get install node-less -y
 sudo apt-get install python-gevent -y
 
-#--------------------------------------------------
-# Install Wkhtmltopdf if needed
-#--------------------------------------------------
-if [ $INSTALL_WKHTMLTOPDF = "True" ]; then
-  echo -e "\\n---- Install wkhtml and place shortcuts on correct place for ODOO 10 ----"
-  #pick up correct one from x64 & x32 versions:
-  if [ "`getconf LONG_BIT`" == "64" ];then
-      _url=$WKHTMLTOX_X64
-  else
-      _url=$WKHTMLTOX_X32
-  fi
-  sudo wget $_url
-  sudo gdebi --n `basename $_url`
-  sudo ln -s /usr/local/bin/wkhtmltopdf /usr/bin
-  sudo ln -s /usr/local/bin/wkhtmltoimage /usr/bin
-else
-  echo "Wkhtmltopdf isn't installed due to the choice of the user!"
-fi
-
-echo -e "\\n---- Create Log directory ----"
-sudo mkdir $OE_HOME_LOG/
-
-echo -e "\\n---- Create odoo-run script ----"
-cat <<EOF > ~/$OE_RUN_SCRIPT
-#!/bin/bash
-
-$OE_USER/odoo/odoo-bin
-EOF
-sudo chmod +x $OE_RUN_SCRIPT
-
-sudo mkdir $OE_HOME_LOG/
-
-#--------------------------------------------------
-# Install ODOO
-#--------------------------------------------------
-echo -e "\\n==== Installing ODOO Server ===="
-sudo git clone --depth 1 --branch $OE_VERSION https://www.github.com/odoo/odoo $OE_HOME_EXT/
-
 if [ $IS_ENTERPRISE = "True" ]; then
     # Odoo Enterprise install!
     echo -e "\\n--- Create symlink for node"
     sudo ln -s /usr/bin/nodejs /usr/bin/node
-    sudo su $OE_USER -c "mkdir $OE_HOME/enterprise"
-    sudo su $OE_USER -c "mkdir $OE_HOME/enterprise/addons"
+    sudo su $INSTANCE_USER -c "mkdir $OE_HOME/odoo-enterprise"
 
-    GITHUB_RESPONSE=$(sudo git clone --depth 1 --branch $OE_VERSION https://www.github.com/odoo/enterprise "$OE_HOME/enterprise/addons" 2>&1)
+    GITHUB_RESPONSE=$(sudo git clone --depth 1 --branch $OE_VERSION https://www.github.com/odoo/enterprise "$OE_HOME" 2>&1)
     while [[ $GITHUB_RESPONSE == *"Authentication"* ]]; do
         echo "------------------------WARNING------------------------------"
         echo "Your authentication with Github has failed! Please try again."
@@ -157,33 +178,44 @@ if [ $IS_ENTERPRISE = "True" ]; then
         echo "TIP: Press ctrl+c to stop this script."
         echo "-------------------------------------------------------------"
         echo " "
-        GITHUB_RESPONSE=$(sudo git clone --depth 1 --branch $OE_VERSION https://www.github.com/odoo/enterprise "$OE_HOME/enterprise/addons" 2>&1)
+        GITHUB_RESPONSE=$(sudo git clone --depth 1 --branch $OE_VERSION https://www.github.com/odoo/enterprise "$OE_HOME" 2>&1)
     done
 
-    echo -e "\\n---- Added Enterprise code under $OE_HOME/enterprise/addons ----"
+    echo -e "\\n---- Added Enterprise code under $OE_HOME/enterprise ----"
+    echo -e "\\n---- Installing Enterprise specific libraries ----"
+    sudo apt-get install nodejs npm nodejs-legacy -y
+    sudo npm install -g less
+    sudo npm install -g less-plugin-clean-css
 fi
 
-echo -e "\\n---- Installing Enterprise specific libraries ----"
-sudo apt-get install nodejs npm nodejs-legacy -y
-sudo npm install -g less
-sudo npm install -g less-plugin-clean-css
-
 echo -e "\\n---- Cloning odoo-addons repository"
-sudo git clone --branch master https://www.github.com/nahualventure/odoo-addons
+GITHUB_RESPONSE=$(sudo git clone --branch $OE_VERSION https://www.github.com/nahualventure/odoo-addons "$OE_HOME" 2>&1)
+while [[ $GITHUB_RESPONSE == *"Authentication"* ]]; do
+    echo "------------------------WARNING------------------------------"
+    echo "Your authentication with Github has failed! Please try again."
+    printf "In order to clone and install the Odoo enterprise version you \\nneed to be an offical Odoo partner and you need access to\\nhttp://github.com/odoo/enterprise.\\n"
+    echo "TIP: Press ctrl+c to stop this script."
+    echo "-------------------------------------------------------------"
+    echo " "
+    GITHUB_RESPONSE=$(sudo git clone --branch $OE_VERSION https://www.github.com/nahualventure/odoo-addons "$OE_HOME" 2>&1)
+done
+
 echo -e "\\n---- Cloning odoo-addons-external repository"
-sudo git clone --branch master https://www.github.com/nahualventure/odoo-addons-external
-
-# echo -e "\\n---- Create custom module directory ----"
-# sudo su $OE_USER -c "mkdir $OE_HOME/custom"
-# sudo su $OE_USER -c "mkdir $OE_HOME/custom/addons"
-
-echo -e "\\n---- Setting permissions on home folder ----"
-sudo chown -R $OE_USER:$OE_USER $OE_HOME/*
+GITHUB_RESPONSE=$(sudo git clone --branch $OE_VERSION https://www.github.com/nahualventure/odoo-addons "$OE_HOME" 2>&1)
+while [[ $GITHUB_RESPONSE == *"Authentication"* ]]; do
+    echo "------------------------WARNING------------------------------"
+    echo "Your authentication with Github has failed! Please try again."
+    printf "In order to clone and install the Odoo enterprise version you \\nneed to be an offical Odoo partner and you need access to\\nhttp://github.com/odoo/enterprise.\\n"
+    echo "TIP: Press ctrl+c to stop this script."
+    echo "-------------------------------------------------------------"
+    echo " "
+    GITHUB_RESPONSE=$(sudo git clone --branch $OE_VERSION https://www.github.com/nahualventure/odoo-addons "$OE_HOME" 2>&1)
+done
 
 echo -e "* Creating server config file"
 cat <<EOF > ~/$OE_CONFIG
 [options]
-addons_path = $OE_HOME/odoo/addons,$OE_HOME/odoo-addons,$OE_HOME/odoo-addons-external
+addons_path = $OE_HOME/odoo-addons,$OE_HOME/odoo-addons-external,$OE_HOME/enterprise,$OE_HOME/odoo/addons
 admin_passwd = $OE_SUPERADMIN
 csv_internal_sep = ,
 data_dir = $OE_HOME/.local/share/Odoo
@@ -221,17 +253,6 @@ pidfile = None
 proxy_mode = True
 reportgz = False
 server_wide_modules = web,web_kanban
-sentry_dsn = $ST_DSN
-sentry_enabled = true
-sentry_logging_level = error
-sentry_exclude_loggers = werkzeug
-sentry_ignore_exceptions = odoo.exceptions.AccessDenied,odoo.exceptions.AccessError,odoo.exceptions.MissingError,odoo.exceptions.RedirectWarning,odoo.exceptions.UserError,odoo.exceptions.ValidationError,odoo.exceptions.Warning,odoo.exceptions.except_orm
-sentry_processors = raven.processors.SanitizePasswordsProcessor,odoo.addons.sentry.logutils.SanitizeOdooCookiesProcessor
-sentry_transport = threaded
-sentry_include_context = true
-sentry_environment = production
-sentry_auto_log_stacks = false
-sentry_odoo_dir = $OE_HOME/odoo/odoo/
 smtp_password = False
 smtp_port = $OE_SMTP_PORT
 smtp_server = localhost
@@ -251,16 +272,31 @@ xmlrpc_interface = 127.0.0.1
 xmlrpc_port = $OE_PORT
 EOF
 
-sudo chown $OE_USER:$OE_USER /etc/${OE_CONFIG}.conf
+if [ $PRODUCTION = "True" ] && [ $SENTRY = "True" ]; then
+    sudo su root -c "printf 'sentry_dsn = $ST_DSN\n' >> ~/${OE_CONFIG}.conf"
+    sudo su root -c "printf 'sentry_enabled = true\n' >> ~/${OE_CONFIG}.conf"
+    sudo su root -c "printf 'sentry_logging_level = error\n' >> ~/${OE_CONFIG}.conf"
+    sudo su root -c "printf 'sentry_exclude_loggers = werkzeug\n' >> ~/${OE_CONFIG}.conf"
+    sudo su root -c "printf 'sentry_ignore_exceptions = odoo.exceptions.AccessDenied,odoo.exceptions.AccessError,odoo.exceptions.MissingError,odoo.exceptions.RedirectWarning,odoo.exceptions.UserError,odoo.exceptions.ValidationError,odoo.exceptions.Warning,odoo.exceptions.except_orm\n' >> ~/${OE_CONFIG}.conf"
+    sudo su root -c "printf 'sentry_processors = raven.processors.SanitizePasswordsProcessor,odoo.addons.sentry.logutils.SanitizeOdooCookiesProcessor\n' >> ~/${OE_CONFIG}.conf"
+    sudo su root -c "printf 'sentry_transport = threaded\n' >> ~/${OE_CONFIG}.conf"
+    sudo su root -c "printf 'sentry_include_context = true\n' >> ~/${OE_CONFIG}.conf"
+    sudo su root -c "printf 'sentry_environment = production\n' >> ~/${OE_CONFIG}.conf"
+    sudo su root -c "printf 'sentry_auto_log_stacks = false\n' >> ~/${OE_CONFIG}.conf"
+    sudo su root -c "printf 'sentry_odoo_dir = $OE_HOME/odoo/odoo/\n' >> ~/${OE_CONFIG}.conf"
+fi
+
+sudo chown $INSTANCE_USER /etc/${OE_CONFIG}.conf
 sudo chmod 640 /etc/${OE_CONFIG}.conf
 
 #NGINX configuration
-echo -e "\\n ---- Installing NGINX ----"
-sudo apt-get install nginx -y
-sudo ufw allow 'Nginx HTTP'
-echo -e "* Creating nginx configuration file"
-sudo touch /etc/nginx/sites-available/$OE_USER
-sudo cat << EOF > /etc/nginx/sites-available/$OE_USER
+if [ $PRODUCTION = "True" ]; then
+    echo -e "\\n ---- Installing NGINX ----"
+    sudo apt-get install nginx -y
+    sudo ufw allow 'Nginx HTTP'
+    echo -e "* Creating nginx configuration file"
+    sudo touch /etc/nginx/sites-available/$OE_INSTANCE
+    sudo cat << EOF > /etc/nginx/sites-available/$OE_INSTANCE
 upstream backend-odoo {
   server 127.0.0.1:$OE_PORT;
 }
@@ -315,19 +351,22 @@ server {
 
 }
 EOF
-echo -e "Setting up symlink"
-sudo ln -s /etc/nginx/sites-available/$OE_USER /etc/nginx/sites-enabled/$OE_USER
-echo -e "Initializing nginx..."
-sudo rm /etc/nginx/sites-enabled/default
-sudo systemctl start nginx
+    echo -e "Setting up symlink"
+    sudo ln -s /etc/nginx/sites-available/$OE_CONFIG /etc/nginx/sites-enabled/$OE_CONFIG
+    echo -e "Initializing nginx..."
+    sudo rm /etc/nginx/sites-enabled/default
+    sudo systemctl start nginx
+fi
 
 echo "-----------------------------------------------------------"
 echo "Done! The Odoo server is up and running. Specifications:"
 echo "Port: $OE_PORT"
-echo "User PostgreSQL: $OE_USER"
-echo "Code location: $OE_USER"
+echo "User PostgreSQL: $DB_USER"
+echo "Code location: $OE_HOME"
+echo "Odoo folder: $OE_HOME/odoo/"
+echo "Odoo Enterprise folder: $OE_HOME/enterprise/"
 echo "Odoo Addons folder: $OE_HOME/odoo-addons/"
-echo "Start Odoo service: sudo service $OE_CONFIG start"
-echo "Stop Odoo service: sudo service $OE_CONFIG stop"
-echo "Restart Odoo service: sudo service $OE_CONFIG restart"
+#echo "Start Odoo service: sudo service $OE_CONFIG start"
+#echo "Stop Odoo service: sudo service $OE_CONFIG stop"
+#echo "Restart Odoo service: sudo service $OE_CONFIG restart"
 echo "-----------------------------------------------------------"
