@@ -24,7 +24,7 @@ INSTANCE_USER="ubuntu"
 #odoo
 OE_USER="odoo"
 OE_HOME="/home/$INSTANCE_USER"
-OE_HOME_LOG="/$OE_HOME/${OE_USER}-logs"
+OE_HOME_LOG="$OE_HOME/${OE_USER}-logs"
 OE_INSTANCE="$OE_USER"
 #The default port where this Odoo instance will run under (provided you use the command -c in the terminal)
 #Set to true if you want to install it, false if you don't need it or have it already installed.
@@ -68,7 +68,7 @@ if [ $PRODUCTION = "True" ]; then
     # Update Server
     #--------------------------------------------------
     echo -e "\\n---- Update Server ----"
-    sudo apt-get update
+    sudo apt-get update -y
     sudo apt-get upgrade -y
 
     #--------------------------------------------------
@@ -82,14 +82,17 @@ fi
 #--------------------------------------------------
 if [ $INSTALL_POSTGRESQL = "True" ]; then
     echo -e "\\n---- Install PostgreSQL Server ----"
-    sudo apt-get install postgresql -y
+    echo 'deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main' >> /etc/apt/sources.list.d/pgdg.list
+    wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add
+    sudo apt-get update -y
+    sudo apt-get install postgresql-10 -y
 fi
 
 if [ $CREATE_POSTGRESQL_USER = "True" ]; then
     echo -e "\\n---- Creating the ODOO PostgreSQL User  ----"
     sudo su - postgres -c "createuser -s $DB_USER" 2> /dev/null || true
     echo -e "\\n---- Adding new line to pg_hba.conf ----"
-    echo "local	all		$DB_USER					trust" | sudo tee --append /etc/postgresql/9.6/main/pg_hba.conf
+    echo "local	all		$DB_USER					trust" | sudo tee --append /etc/postgresql/10/main/pg_hba.conf
 fi
 
 #--------------------------------------------------
@@ -104,6 +107,7 @@ if [ $INSTALL_WKHTMLTOPDF = "True" ]; then
         _url=$WKHTMLTOX_X32
     fi
     sudo wget $_url
+    sudo apt-get install gdebi-core -y
     sudo gdebi --n `basename $_url`
     sudo ln -s /usr/local/bin/wkhtmltopdf /usr/bin
 sudo ln -s /usr/local/bin/wkhtmltoimage /usr/bin
@@ -144,6 +148,7 @@ sudo apt-get install wget git bzr python-pip gdebi-core -y
 echo -e "\\n---- Install python packages ----"
 sudo apt-get install python-pypdf2 python-dateutil python-feedparser python-ldap python-libxslt1 python-lxml python-mako python-openid python-psycopg2 python-pybabel python-pychart python-pydot python-pyparsing python-reportlab python-simplejson python-tz python-vatnumber python-vobject python-webdav python-werkzeug python-xlwt python-yaml python-zsi python-docutils python-psutil python-mock python-unittest2 python-jinja2 python-pypdf python-decorator python-requests python-passlib python-pil -y
 
+echo -e "\\n---- Setting up virtualenv ----"
 sudo pip3 install virtualenvwrapper
 export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3
 source /usr/local/bin/virtualenvwrapper.sh
@@ -165,10 +170,11 @@ sudo apt-get install node-less -y
 sudo apt-get install python-gevent -y
 
 if [ $IS_ENTERPRISE = "True" ]; then
+    echo -e "\\n==== Installing ODOO Enterprise ===="
     # Odoo Enterprise install!
     echo -e "\\n--- Create symlink for node"
     sudo ln -s /usr/bin/nodejs /usr/bin/node
-    sudo su $INSTANCE_USER -c "mkdir $OE_HOME/odoo-enterprise"
+    # sudo su $INSTANCE_USER -c "mkdir $OE_HOME/odoo-enterprise"
 
     GITHUB_RESPONSE=$(sudo git clone --depth 1 --branch $OE_VERSION https://www.github.com/odoo/enterprise "$OE_HOME" 2>&1)
     while [[ $GITHUB_RESPONSE == *"Authentication"* ]]; do
@@ -184,7 +190,7 @@ if [ $IS_ENTERPRISE = "True" ]; then
     echo -e "\\n---- Added Enterprise code under $OE_HOME/enterprise ----"
     echo -e "\n---- Installing Enterprise specific libraries ----"
     sudo pip3 install num2words ofxparse
-    sudo apt-get install nodejs npm
+    sudo apt-get install nodejs npm -y
     sudo npm install -g less
     sudo npm install -g less-plugin-clean-css
 fi
