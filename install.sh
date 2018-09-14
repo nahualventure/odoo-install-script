@@ -134,7 +134,7 @@ fi
 # Install ODOO
 #--------------------------------------------------
 echo -e "\\n==== Installing ODOO Server ===="
-sudo git clone --depth 1 --branch $OE_VERSION https://www.github.com/odoo/odoo $OE_HOME/
+git clone --depth 1 --branch $OE_VERSION https://www.github.com/odoo/odoo $OE_HOME/
 
 #--------------------------------------------------
 # Install Dependencies
@@ -156,7 +156,7 @@ sudo mkvirtualenv $OE_INSTANCE
 
 
 sudo pip3 install --upgrade pip
-sudo pip3 install pypdf2 Babel passlib Werkzeug decorator python-dateutil pyyaml psycopg2 psutil html2text docutils lxml pillow reportlab ninja2 requests gdata XlsxWriter vobject python-openid pyparsing pydot mock mako Jinja2 ebaysdk feedparser xlwt psycogreen suds-jurko pytz pyusb greenlet xlrd
+sudo pip3 install pypdf2 Babel passlib Werkzeug decorator python-dateutil pyyaml psycopg2 psycopg2-binary psutil html2text docutils lxml pillow reportlab ninja2 requests gdata XlsxWriter vobject python-openid pyparsing pydot mock mako Jinja2 ebaysdk feedparser xlwt psycogreen suds-jurko pytz pyusb greenlet xlrd gevent
 # Packages for custom modules
 sudo pip3 install xlsxwriter zeep pysftp
 
@@ -176,7 +176,7 @@ if [ $IS_ENTERPRISE = "True" ]; then
     sudo ln -s /usr/bin/nodejs /usr/bin/node
     # sudo su $INSTANCE_USER -c "mkdir $OE_HOME/odoo-enterprise"
 
-    GITHUB_RESPONSE=$(sudo git clone --depth 1 --branch $OE_VERSION https://www.github.com/odoo/enterprise "$OE_HOME" 2>&1)
+    GITHUB_RESPONSE=$(git clone --depth 1 --branch $OE_VERSION https://www.github.com/odoo/enterprise "$OE_HOME" 2>&1)
     while [[ $GITHUB_RESPONSE == *"Authentication"* ]]; do
         echo "------------------------WARNING------------------------------"
         echo "Your authentication with Github has failed! Please try again."
@@ -184,7 +184,7 @@ if [ $IS_ENTERPRISE = "True" ]; then
         echo "TIP: Press ctrl+c to stop this script."
         echo "-------------------------------------------------------------"
         echo " "
-        GITHUB_RESPONSE=$(sudo git clone --depth 1 --branch $OE_VERSION https://www.github.com/odoo/enterprise "$OE_HOME" 2>&1)
+        GITHUB_RESPONSE=$(git clone --depth 1 --branch $OE_VERSION https://www.github.com/odoo/enterprise "$OE_HOME" 2>&1)
     done
 
     echo -e "\\n---- Added Enterprise code under $OE_HOME/enterprise ----"
@@ -196,7 +196,7 @@ if [ $IS_ENTERPRISE = "True" ]; then
 fi
 
 echo -e "\\n---- Cloning odoo-addons repository"
-GITHUB_RESPONSE=$(sudo git clone --branch $OE_VERSION https://www.github.com/nahualventure/odoo-addons "$OE_HOME" 2>&1)
+GITHUB_RESPONSE=$(git clone --branch $OE_VERSION https://www.github.com/nahualventure/odoo-addons "$OE_HOME" 2>&1)
 while [[ $GITHUB_RESPONSE == *"Authentication"* ]]; do
     echo "------------------------WARNING------------------------------"
     echo "Your authentication with Github has failed! Please try again."
@@ -204,11 +204,11 @@ while [[ $GITHUB_RESPONSE == *"Authentication"* ]]; do
     echo "TIP: Press ctrl+c to stop this script."
     echo "-------------------------------------------------------------"
     echo " "
-    GITHUB_RESPONSE=$(sudo git clone --branch $OE_VERSION https://www.github.com/nahualventure/odoo-addons "$OE_HOME" 2>&1)
+    GITHUB_RESPONSE=$(git clone --branch $OE_VERSION https://www.github.com/nahualventure/odoo-addons "$OE_HOME" 2>&1)
 done
 
 echo -e "\\n---- Cloning odoo-addons-external repository"
-GITHUB_RESPONSE=$(sudo git clone --branch $OE_VERSION https://www.github.com/nahualventure/odoo-addons "$OE_HOME" 2>&1)
+GITHUB_RESPONSE=$(git clone --branch $OE_VERSION https://www.github.com/nahualventure/odoo-addons "$OE_HOME" 2>&1)
 while [[ $GITHUB_RESPONSE == *"Authentication"* ]]; do
     echo "------------------------WARNING------------------------------"
     echo "Your authentication with Github has failed! Please try again."
@@ -216,7 +216,7 @@ while [[ $GITHUB_RESPONSE == *"Authentication"* ]]; do
     echo "TIP: Press ctrl+c to stop this script."
     echo "-------------------------------------------------------------"
     echo " "
-    GITHUB_RESPONSE=$(sudo git clone --branch $OE_VERSION https://www.github.com/nahualventure/odoo-addons "$OE_HOME" 2>&1)
+    GITHUB_RESPONSE=$(git clone --branch $OE_VERSION https://www.github.com/nahualventure/odoo-addons "$OE_HOME" 2>&1)
 done
 
 echo -e "* Creating server config file"
@@ -233,10 +233,13 @@ db_password = $DB_PASS
 db_port = False
 db_template = $DB_TEMPLATE
 db_user = $DB_USER
-dbfilter = .*
+dbfilter =
 demo = {}
 email_from = False
-geoip_database = /usr/share/GeoIP/GeoLiteCity.dat
+geoip_database = /usr/share/GeoIP/GeoLite2-City.mmdb
+http_enable = True
+http_interface = 127.0.0.1
+http_port = $OE_PORT
 import_partial =
 limit_memory_hard = 8684354560
 limit_memory_soft = 8147483648
@@ -246,7 +249,7 @@ limit_time_real = 18000
 limit_time_real_cron = -1
 list_db = True
 log_db = False
-log_level = warning
+log_db_level = warning
 log_handler = :INFO
 log_level = info
 logfile = $OE_HOME_LOG/odoo-server.log
@@ -256,10 +259,10 @@ max_cron_threads = $OE_CRON_WORKERS
 osv_memory_age_limit = 1.0
 osv_memory_count_limit = False
 pg_path = None
-pidfile = None
+pidfile = False
 proxy_mode = True
 reportgz = False
-server_wide_modules = web,web_kanban
+server_wide_modules = web
 smtp_password = False
 smtp_port = $OE_SMTP_PORT
 smtp_server = localhost
@@ -274,9 +277,6 @@ translate_modules = ['all']
 unaccent = False
 without_demo = False
 workers = $OE_WORKERS
-xmlrpc = True
-xmlrpc_interface = 127.0.0.1
-xmlrpc_port = $OE_PORT
 EOF
 
 if [ $PRODUCTION = "True" ] && [ $SENTRY = "True" ]; then
@@ -359,10 +359,10 @@ server {
 }
 EOF
     echo -e "Setting up symlink"
-    sudo ln -s /etc/nginx/sites-available/$OE_CONFIG /etc/nginx/sites-enabled/$OE_CONFIG
+    sudo ln -s /etc/nginx/sites-available/$OE_INSTANCE /etc/nginx/sites-enabled
     echo -e "Initializing nginx..."
     sudo rm /etc/nginx/sites-enabled/default
-    sudo systemctl start nginx
+    sudo systemctl restart nginx
 fi
 
 echo "-----------------------------------------------------------"
