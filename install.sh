@@ -1,9 +1,9 @@
 #!/bin/bash
 ################################################################################
-# Script for installing Odoo on Ubuntu 14.04, 15.04 and 16.04 (could be used for other version too)
+# Script for installing Odoo on Ubuntu 14.04, 15.04, 16.04 and 18.04 (could be used for other version too)
 # Author: Oscar Gil
 #-------------------------------------------------------------------------------
-# This script will install Odoo on your Ubuntu 16.04. It can install multiple Odoo instances
+# This script will install Odoo on your Ubuntu 16.04 server. It can install multiple Odoo instances
 # in one Ubuntu because of the different xmlrpc_ports
 #-------------------------------------------------------------------------------
 # Make a new file:
@@ -33,10 +33,10 @@ INSTALL_WKHTMLTOPDF="True"
 OE_PORT="8069"
 OE_LONGP_PORT="8072"
 OE_SMTP_PORT="25"
-#Choose the Odoo version which you want to install. For example: 11.0, 10.0, 9.0 or saas-18. When using 'master' the master version will be installed.
-#IMPORTANT! This script contains extra libraries that are specifically needed for Odoo 11.0
-OE_VERSION="11.0"
-# Set this to True if you want to install Odoo 11 Enterprise!
+# Choose the Odoo version which you want to install. For example: 12.0, 11.0, 10.0 or saas-18. When using 'master' the master version will be installed.
+# IMPORTANT! This script contains extra libraries that are specifically needed for Odoo 12.0
+OE_VERSION="12.0"
+# Set this to True if you want to install Odoo 12 Enterprise!
 IS_ENTERPRISE="False"
 #Workers config
 OE_WORKERS="4"
